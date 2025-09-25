@@ -18,7 +18,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.9.8   # use the version you run locally
+          terraform_version: 1.10.3
 
       - name: Terraform Init
         run: terraform -chdir=terraform init
