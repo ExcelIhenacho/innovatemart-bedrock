@@ -1,0 +1,6 @@
+# Ignore all local Terraform artifacts
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+terraform/.terraform/
