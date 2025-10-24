@@ -1,0 +1,114 @@
+name: 'Deploy Retail Store Application'
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'EKS Cluster Name'
+        required: true
+        default: 'innovatemart-eks'
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-east-1'
+  push:
+    branches:
+      - main
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/deploy-app.yml'
+
+env:
+  AWS_REGION: ${{ github.event.inputs.region || 'us-east-1' }}
+  CLUSTER_NAME: ${{ github.event.inputs.cluster_name || 'innovatemart-eks' }}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: 'Deploy Application to EKS'
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout the repository
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # Configure AWS credentials
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    # Install kubectl
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: 'v1.30.0'
+
+    # Configure kubectl for EKS
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
+        kubectl version --client
+
+    # Verify cluster connection
+    - name: Verify Cluster Connection
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+
+    # Deploy the retail store application
+    - name: Deploy Retail Store Application
+      run: |
+        echo "Deploying retail store application..."
+        kubectl apply -f k8s/retail-store-app.yaml
+
+    # Wait for deployments to be ready
+    - name: Wait for Deployments
+      run: |
+        echo "Waiting for deployments to be ready..."
+        kubectl wait --for=condition=available --timeout=600s deployment --all -n retail-store || true
+
+    # Check deployment status
+    - name: Check Deployment Status
+      run: |
+        echo "=== Namespaces ==="
+        kubectl get namespaces
+        
+        echo "=== Pods in retail-store namespace ==="
+        kubectl get pods -n retail-store -o wide
+        
+        echo "=== Services in retail-store namespace ==="
+        kubectl get svc -n retail-store
+        
+        echo "=== Get UI Service LoadBalancer URL ==="
+        kubectl get svc ui -n retail-store -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+    # Get application URL
+    - name: Get Application URL
+      id: app-url
+      run: |
+        echo "Waiting for LoadBalancer to be provisioned..."
+        sleep 60
+        APP_URL=$(kubectl get svc ui -n retail-store -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        if [ -z "$APP_URL" ]; then
+          APP_URL=$(kubectl get svc ui -n retail-store -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        fi
+        echo "Application URL: http://${APP_URL}"
+        echo "app_url=${APP_URL}" >> $GITHUB_OUTPUT
+
+    # Create deployment summary
+    - name: Deployment Summary
+      run: |
+        echo "## Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Application URL:" >> $GITHUB_STEP_SUMMARY
+        echo "http://${{ steps.app-url.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Cluster: ${{ env.CLUSTER_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Region: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+

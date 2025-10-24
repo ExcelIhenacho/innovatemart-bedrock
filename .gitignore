@@ -1,6 +1,61 @@
-# Ignore all local Terraform artifacts
-**/.terraform/
+# Terraform
+**/.terraform/*
 *.tfstate
 *.tfstate.*
+*.tfvars
+*.tfplan
+.terraform.lock.hcl
 crash.log
-terraform/.terraform/
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform Cloud
+.terraform.tfstate.lock.info
+
+# Sensitive files
+**/credentials
+**/secrets
+**/*secret*
+**/*.pem
+**/*.key
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.sublime-*
+
+# Logs
+*.log
+logs/
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# AWS
+.aws/
+aws-credentials
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary files
+tmp/
+temp/

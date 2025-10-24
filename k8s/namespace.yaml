@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: retail-store
+  labels:
+    name: retail-store
+    project: innovatemart-bedrock
+
