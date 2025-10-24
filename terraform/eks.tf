@@ -17,7 +17,7 @@ module "eks" {
 
   eks_managed_node_groups = {
     general = {
-      name           = "${var.cluster_name}-node-group"
+      name           = "general"
       desired_size   = var.node_desired_size
       min_size       = var.node_min_size
       max_size       = var.node_max_size
@@ -29,7 +29,7 @@ module "eks" {
       }
 
       tags = {
-        Name = "${var.cluster_name}-node-group"
+        Name = "general"
       }
     }
   }
