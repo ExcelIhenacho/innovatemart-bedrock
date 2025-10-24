@@ -111,7 +111,7 @@ resource "random_password" "catalog_db_password" {
 resource "aws_db_instance" "catalog_mysql" {
   identifier     = "${var.cluster_name}-catalog-db"
   engine         = "mysql"
-  engine_version = "8.0.35"
+  engine_version = "8.0.43"
   instance_class = "db.t3.micro"
 
   allocated_storage     = 20
