@@ -1,32 +1,128 @@
-name: Terraform Deploy
+name: 'Terraform Infrastructure Deployment'
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.9.0
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   terraform:
+    name: 'Terraform Plan & Apply'
     runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./terraform
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.9.8   # use the version you run locally
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Terraform Init
-        run: terraform -chdir=terraform init
+    # Configure AWS credentials
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: Terraform Plan
-        if: github.event_name == 'pull_request'
-        run: terraform -chdir=terraform plan
+    # Setup Terraform
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform -chdir=terraform apply -auto-approve
+    # Initialize Terraform
+    - name: Terraform Init
+      id: init
+      run: terraform init
+
+    # Validate Terraform configuration
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+
+    # Format check
+    - name: Terraform Format Check
+      id: fmt
+      run: terraform fmt -check -recursive
+      continue-on-error: true
+
+    # Plan Terraform changes
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color -input=false -out=tfplan
+      continue-on-error: true
+
+    # Save plan output for PR comment
+    - name: Save Plan Output
+      if: github.event_name == 'pull_request'
+      run: terraform show -no-color tfplan > plan_output.txt
+
+    # Comment on PR with plan results
+    - name: Comment PR with Plan
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const plan = fs.readFileSync('terraform/plan_output.txt', 'utf8');
+          const output = `### Terraform Plan Results 📋
+          
+          #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+          #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+          #### Terraform Format 🖌\`${{ steps.fmt.outcome }}\`
+          #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+          <details><summary>Show Plan</summary>
+
+          \`\`\`terraform
+          ${plan.length > 60000 ? plan.substring(0, 60000) + '\n...(truncated)' : plan}
+          \`\`\`
+
+          </details>
+
+          *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          });
+
+    # Apply Terraform changes (only on main branch)
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false tfplan
+
+    # Show outputs after apply
+    - name: Terraform Output
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform output
+
+    # Status check for PR
+    - name: Terraform Plan Status
+      if: steps.plan.outcome == 'failure'
+      run: exit 1
