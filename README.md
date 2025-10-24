@@ -545,4 +545,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Project Bedrock** | Built with ❤️ by the InnovateMart DevOps Team from AltSchool Africa
-**Last Updated**: October 2
+**Last Updated**: October 
