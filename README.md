@@ -185,8 +185,8 @@ terraform apply
 ```
 
 ### 5. Configure kubectl
-```bash
-aws eks update-kubeconfig --region us-east-1 --name innovatemart-eks
+   ```bash
+   aws eks update-kubeconfig --region us-east-1 --name innovatemart-eks
 kubectl get nodes
 ```
 
@@ -203,13 +203,13 @@ kubectl apply -f k8s/retail-store-managed-db.yaml
 ```
 
 **Option C: With Ingress/ALB (BONUS)**
-```bash
+   ```bash
 kubectl apply -f k8s/retail-store-managed-db.yaml
 kubectl apply -f k8s/ingress-alb.yaml
-```
+   ```
 
 ### 7. Access the Application
-```bash
+   ```bash
 # Get LoadBalancer URL
 kubectl get svc ui -n retail-store
 
@@ -217,7 +217,7 @@ kubectl get svc ui -n retail-store
 echo "http://$(kubectl get svc ui -n retail-store -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
 
 # Wait 2-3 minutes for LoadBalancer to provision, then open in browser
-```
+   ```
 
 ---
 
